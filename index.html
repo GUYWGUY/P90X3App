@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>מעקב אימוני P90X3</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="manifest.json">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap');
+    body {
+      background: linear-gradient(135deg, #2e2e2e, #5f5f5f);
+      background-attachment: fixed;
+      background-position: center;
+      background-repeat: no-repeat;
+      font-family: 'Assistant', sans-serif;
+      direction: rtl;
+      text-align: right;
+      color: #f8f9fa;
+    }
+    .calendar-table {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .calendar-table th, .calendar-table td:first-child {
+      background-color: #343a40 !important;
+    }
+    .calendar-table, .table-striped {
+      border-radius: 1rem;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+    .completed {
+      background-color: #28a745 !important;
+      color: white;
+    }
+    .pending {
+      background-color: rgba(255, 193, 7, 0.2) !important;
+      color: #ffc107;
+      cursor: pointer;
+    }
+    .video-frame {
+      width: 100%;
+      height: 360px;
+      background-color: #000;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 1rem;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+    .exercise-row input {
+      width: 60px;
+      background-color: #212529;
+      color: #f8f9fa;
+      border: 1px solid #495057;
+    }
+    .form-control {
+      background-color: #212529;
+      color: #f8f9fa;
+      border: 1px solid #495057;
+    }
+    .btn:hover {
+      transform: scale(1.03);
+      transition: transform 0.2s ease;
+    }
+    .btn-secondary {
+      background-color: #6c757d;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .btn-warning {
+      background-color: #ffc107;
+      color: #212529;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .btn-danger {
+      background-color: #dc3545;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .btn-success {
+      background-color: #198754;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .btn-info {
+      background-color: #0dcaf0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .progress {
+      background-color: #343a40;
+      border-radius: 1rem;
+      overflow: hidden;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    .calendar-table td,
+    .calendar-table th {
+      text-align: center;
+      vertical-align: middle;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+    .table-striped th, .table-striped td {
+      text-align: center;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body onload="loadCompletedWorkouts(); generateCalendar(); updateProgressBar();">
+  <div class="container py-4">
+    <div class="text-center mb-2">
+      <img src="Title.png" alt="Training App P90X3" style="max-width: 100%; height: auto; max-height: 150px;">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">התקדמות כללית:</label>
+      <div class="progress">
+        <div id="progress-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%">0%</div>
+      </div>
+    </div>
+
+    <div class="text-center mb-3">
+      <button class="btn btn-danger" onclick="resetAllWorkouts()"><i class="bi bi-arrow-clockwise"></i> איפוס כל האימונים</button>
+    </div>
+
+    <div class="text-center mb-4">
+      <button class="btn btn-info" onclick="showSummary()"><i class="bi bi-bar-chart"></i> סיכום שבועי</button>
+    </div>
+
+    <table class="table table-bordered calendar-table">
+      <thead class="table-dark">
+        <tr>
+          <th>שבוע \ יום</th>
+          <th>ראשון</th>
+          <th>שני</th>
+          <th>שלישי</th>
+          <th>רביעי</th>
+          <th>חמישי</th>
+          <th>שישי</th>
+          <th>שבת</th>
+        </tr>
+      </thead>
+      <tbody id="calendar-body"></tbody>
+    </table>
+
+    <div id="workout-details" class="mt-5" style="transition: opacity 0.5s ease; opacity: 0; display: none;">
+      <h3 id="workout-title"></h3>
+      <div class="video-frame mb-3" id="video-frame"></div>
+      <table class="table table-striped">
+        <thead><tr><th>תרגיל</th><th>חזרות</th><th>משקל</th></tr></thead>
+        <tbody id="exercise-table"></tbody>
+      </table>
+      <div class="mb-2" id="save-confirmation" style="color: green; display: none;">✔ האימון נשמר בהצלחה</div>
+      <button class="btn btn-success" onclick="saveWorkout()"><i class="bi bi-check-circle"></i> שמור אימון והשלם</button>
+      <button class="btn btn-warning ms-2" onclick="unmarkWorkout()"><i class="bi bi-x-circle"></i> בטל סימון השלמה</button>
+      <button class="btn btn-secondary ms-2" onclick="closeWorkout()"><i class="bi bi-door-closed"></i> סגור</button>
+    </div>
+
+    <div class="mt-5" id="summary" style="transition: opacity 0.5s ease; opacity: 0; display: none;">
+      <h3>סיכום שבועי</h3>
+      <button class="btn btn-secondary mb-3" onclick="hideSummary()"><i class="bi bi-x-circle"></i> סגור סיכום</button>
+      <div><canvas id="progressChart" height="200"></canvas></div>
+      <div class="mt-4"><canvas id="weightChart" height="200"></canvas></div>
+    </div>
+  </div>
+
+  <script>
+    // משתנים להגדרת בסיס הקישור של דרופבוקס
+    const dropboxBaseLink = "https://www.dropbox.com/scl/fi/0pvdes6b2eb28722bgbj3/";
+    const dropboxQueryParams = "?rlkey=7g2losj8o1ftpsim4r0d00u03&st=ccx8uhbr&dl=1";
+
+    const calendarData = {
+      1: ["Total Synergistics", "Agility X", "X3 Yoga", "The Challenge", "Pilates X", "Incinerator", "Dynamix"],
+      2: ["Total Synergistics", "Agility X", "X3 Yoga", "The Challenge", "Pilates X", "Incinerator", "Dynamix"],
+      3: ["Total Synergistics", "Agility X", "X3 Yoga", "The Challenge", "Pilates X", "Incinerator", "Dynamix"],
+      4: ["Isometrix", "Dynamix", "The Warrior", "Pilates X", "Agility X", "X3 Yoga", "Dynamix"]
+    };
+
+    const workoutExercises = {
+      "Total Synergistics": ["Push-Up/Side Arm Balance", "Crescent Chair", "Pull Knee Pull", "Flip Flop Crunch", "Crawly Plyo Push-Ups", "Relevé-Plié, Weighted", "Chin-Up Circle Crunch", "Boat Plow", "Balance Arch Press RIGHT", "Balance Arch Press LEFT", "3 Hop Press", "Glamour Hammer RIGHT", "Glamour Hammer LEFT", "Branon Boat", "Flying Warrior RIGHT", "Flying Warrior LEFT", "Squat Rockers", "Side Rise Punch RIGHT", "Side Rise Punch LEFT", "Warrior Squat Moon RIGHT", "Warrior Squat Moon LEFT"],
+      "Agility X": ["Hop Squats", "Heismans", "Tony’s Triangle", "Jump Lunges", "Figure 4 Squats", "Lateral Plyo Lunges"],
+      "X3 Yoga": ["Mountain Pose", "Sun Salutation", "Chair Pose", "Crescent Pose", "Warrior 1", "Triangle", "Twisting Triangle"],
+      "The Challenge": ["Wide Pull-Up", "Standard Push-Up", "Chin-Up", "Military Push-Up", "Close Grip Pull-Up", "Wide Push-Up", "Vaulter Pull-Up – Right", "Staggered Push-Up – Right", "Vaulter Pull-Up – Left", "Staggered Push-Up – Left"],
+      "Pilates X": ["Hundred", "Roll Up", "Leg Circles", "Rolling Like a Ball", "Single Leg Stretch", "Double Leg Stretch", "Criss Cross", "Scissors", "Teaser", "Swan", "Swimming"],
+      "Incinerator": ["Renegade Row", "Pull-Ups", "Floor Flys", "Push-Ups", "Rocket Launcher Row", "Chin-Ups", "A Press", "Military Push-Ups", "Monkey Pump", "Pike Press", "Pterodactyl Flys", "Flipper", "Popeye Hammer Curls", "Kneeler Curls", "Hail to the Chief", "Skyfers", "Arm and Hammer", "Rocket Launcher Kickbacks"],
+      "Dynamix": ["Leg Swing Straight", "Leg Swing Cross", "Scorpion", "Foam Roll IT Band", "Glute Bridge", "Superman Hold", "Shoulder Stretch", "Neck Stretch"],
+      "Isometrix": ["Plank Right Arm Up", "Plank Left Arm Up", "Plank Right Leg Up", "Plank Left Leg Up", "Side Plank Right", "Side Plank Left", "Chair Pose", "Tree Pose", "Warrior 3 Right", "Warrior 3 Left", "Half Moon Right", "Half Moon Left", "Royal Dancer Right", "Royal Dancer Left"],
+      "The Warrior": ["Speed Skater", "Lunge Punch", "Side Kick", "Jump Knee Jump", "Uppercut Squat", "Sprawl", "Jab Cross Sprawl", "Hook Upper Sprawl", "Fast Feet Punch", "Elbow Sprawl", "Jab Sprawl Jab", "Jump Knee Sprawl", "Plank Punch", "Spiderman Push-Up", "Floor Sprawl", "Burnout"]
+    };
+
+    const completed = {};
+    let currentWorkoutKey = "";
+    let progressChart, weightChart;
+
+    function loadCompletedWorkouts() {
+      const data = localStorage.getItem("completedWorkouts");
+      if (data) Object.assign(completed, JSON.parse(data));
+    }
+
+    function updateProgressBar() {
+      const done = Object.keys(completed).length;
+      const percent = Math.round((done / 28) * 100);
+      const bar = document.getElementById("progress-bar");
+      bar.style.width = `${percent}%`;
+      bar.textContent = `${percent}%`;
+    }
+
+    function generateCalendar() {
+      const body = document.getElementById("calendar-body");
+      body.innerHTML = "";
+      for (let week = 1; week <= 4; week++) {
+        const tr = document.createElement("tr");
+        tr.innerHTML += `<th>שבוע ${week}</th>`;
+        for (let day = 0; day < 7; day++) {
+          const workout = calendarData[week]?.[day] || "";
+          const key = `${week}-${day}`;
+          const td = document.createElement("td");
+          td.textContent = workout;
+          td.setAttribute("data-key", key);
+          td.className = completed[key] ? 'completed' : 'pending';
+          td.onclick = () => openWorkout(week, day, workout);
+          tr.appendChild(td);
+        }
+        body.appendChild(tr);
+      }
+    }
+
+    function openWorkout(week, day, workout) {
+      currentWorkoutKey = `${week}-${day}`;
+      document.getElementById("workout-title").textContent = `אימון: ${workout} (שבוע ${week}, יום ${day + 1})`;
+      const details = document.getElementById("workout-details");
+      details.style.display = 'block';
+      setTimeout(() => details.style.opacity = 1, 10);
+      document.getElementById("save-confirmation").style.display = 'none';
+
+      // כאן בונים את הקישור לסרטון מדרופבוקס
+      const videoUrl = dropboxBaseLink + workout.replaceAll(' ', '_') + ".mp4" + dropboxQueryParams;
+      document.getElementById("video-frame").innerHTML = `<video controls style="width:100%; height:100%;" allowfullscreen><source src="${videoUrl}" type="video/mp4"></video>`;
+
+      const tbody = document.getElementById("exercise-table");
+      tbody.innerHTML = "";
+      const exercises = workoutExercises[workout] || ["Push-Up", "Pull-Up"];
+      exercises.forEach(ex => {
+        const repsKey = `${currentWorkoutKey}-${ex}-reps`;
+        const weightKey = `${currentWorkoutKey}-${ex}-weight`;
+        const reps = localStorage.getItem(repsKey) || "";
+        const weight = localStorage.getItem(weightKey) || "";
+        tbody.innerHTML += `
+          <tr>
+            <td>${ex}</td>
+            <td><input type="number" class="form-control" value="${reps}" onchange="localStorage.setItem('${repsKey}', this.value)"></td>
+            <td><input type="number" class="form-control" value="${weight}" onchange="localStorage.setItem('${weightKey}', this.value)"></td>
+          </tr>`;
+      });
+    }
+
+    function saveWorkout() {
+      completed[currentWorkoutKey] = true;
+      localStorage.setItem("completedWorkouts", JSON.stringify(completed));
+      updateCalendarCell(currentWorkoutKey);
+      updateProgressBar();
+      document.getElementById("save-confirmation").style.display = 'block';
+      setTimeout(() => {
+        document.getElementById("save-confirmation").style.display = 'none';
+        closeWorkout();
+      }, 1000);
+    }
+
+    function updateCalendarCell(key) {
+      const cell = document.querySelector(`[data-key='${key}']`);
+      if (cell) {
+        cell.classList.remove("pending", "completed");
+        cell.classList.add(completed[key] ? "completed" : "pending");
+      }
+    }
+
+    function closeWorkout() {
+      const details = document.getElementById("workout-details");
+      details.style.opacity = 0;
+      setTimeout(() => details.style.display = 'none', 500);
+    }
+
+    function unmarkWorkout() {
+      delete completed[currentWorkoutKey];
+      localStorage.setItem("completedWorkouts", JSON.stringify(completed));
+      updateCalendarCell(currentWorkoutKey);
+      updateProgressBar();
+      closeWorkout();
+    }
+
+    function resetAllWorkouts() {
+      if (confirm("האם אתה בטוח שברצונך לאפס את כל הסימונים?")) {
+        localStorage.clear();
+        for (let key in completed) delete completed[key];
+        generateCalendar();
+        updateProgressBar();
+      }
+    }
+
+    function showSummary() {
+      document.querySelector('table.calendar-table').style.display = 'none';
+      document.getElementById('workout-details').style.display = 'none';
+      if (progressChart) progressChart.destroy();
+      if (weightChart) weightChart.destroy();
+      const labels = [];
+      const repsData = [];
+      const weightTotals = {}, weightCounts = {};
+      for (let key in localStorage) {
+        if (key.includes("-reps")) {
+          const reps = parseInt(localStorage.getItem(key));
+          const label = key.split("-").slice(2, -1).join(" ");
+          const idx = labels.indexOf(label);
+          if (idx > -1) repsData[idx] += reps;
+          else {
+            labels.push(label);
+            repsData.push(reps);
+            weightTotals[label] = 0;
+            weightCounts[label] = 0;
+          }
+        } else if (key.includes("-weight")) {
+          const weight = parseFloat(localStorage.getItem(key));
+          const label = key.split("-").slice(2, -1).join(" ");
+          if (!weightTotals[label]) {
+            weightTotals[label] = weight;
+            weightCounts[label] = 1;
+          } else {
+            weightTotals[label] += weight;
+            weightCounts[label] += 1;
+          }
+        }
+      }
+      const avgWeights = labels.map(l => (weightCounts[l] ? (weightTotals[l] / weightCounts[l]).toFixed(1) : 0));
+      const summary = document.getElementById("summary");
+      summary.style.display = 'block';
+      setTimeout(() => summary.style.opacity = 1, 10);
+      progressChart = new Chart(document.getElementById("progressChart"), {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'סה"כ חזרות לפי תרגיל', data: repsData, backgroundColor: '#0d6efd' }] },
+        options: { responsive: true }
+      });
+      weightChart = new Chart(document.getElementById("weightChart"), {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'משקל ממוצע לפי תרגיל (ק"ג)', data: avgWeights, backgroundColor: '#198754' }] },
+        options: { responsive: true }
+      });
+    }
+
+    function hideSummary() {
+      const summary = document.getElementById("summary");
+      summary.style.opacity = 0;
+      setTimeout(() => summary.style.display = 'none', 500);
+    }
+  </script>
+
+  <!-- רישום ה-Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js')
+          .then(function(registration) {
+            console.log('ServiceWorker registration successful with scope:', registration.scope);
+          })
+          .catch(function(error) {
+            console.log('ServiceWorker registration failed:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
